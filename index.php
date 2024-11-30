@@ -1,6 +1,32 @@
 <?php
-//Autoload
-$loader = require 'vendor/autoload.php';
+
+// Autoloader manual para a pasta 'controllers'
+spl_autoload_register(function ($class) {
+    $prefix = 'controllers\\';
+    $base_dir = __DIR__ . '/controllers/';
+
+    // Verifica se a classe usa o namespace esperado
+    $len = strlen($prefix);
+    if (strncmp($prefix, $class, $len) !== 0) {
+        return;
+    }
+
+    // Obtém o nome da classe relativo ao namespace
+    $relative_class = substr($class, $len);
+
+    // Substitui os separadores de namespace por separadores de diretório
+    $file = $base_dir . str_replace('\\', '/', $relative_class) . '.php';
+
+    // Inclui o arquivo, se ele existir
+    if (file_exists($file)) {
+        require $file;
+    } else {
+        // Log ou erro para facilitar o debug
+        error_log("Arquivo da classe não encontrado: $file");
+    }
+});
+
+require 'vendor/autoload.php'; // Apenas se necessário para bibliotecas externas
 
 $app = new \Slim\Slim();
 
