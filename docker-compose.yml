@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    ports:
+      - "7010:80"
+    volumes:
+      - .:/var/www/html
+    networks:
+      - atende
+    environment:
+      DB_HOST: 172.20.0.6  # IP do contêiner MySQL na rede atende
+      DB_USER: root         # Usuário do banco de dados
+      DB_PASSWORD: Ncm@647534  # Senha do banco de dados
+      DB_NAME: candelaria   # Nome do banco de dados
+
+networks:
+  atende:
+    external: true   # Garantir que estamos usando a rede externa 'atende'
