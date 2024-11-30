@@ -2,54 +2,72 @@
 //Autoload
 $loader = require 'vendor/autoload.php';
 
-//Instanciando objeto
-$app = new \Slim\Slim(array(
-    'templates.path' => 'templates'
-));
+$app = new \Slim\Slim();
 
-$app->get('/dependentes/', function() use ($app) {
-    (new \controllers\Dependentes($app))->lista();
+// Rota para listar todos os planos
+$app->get('/plano/', function () use ($app) {
+    $controller = new \controllers\Plano($app);
+    $controller->lista();
 });
 
-$app->get('/dependentes/:id', function($id) use ($app) {
-    (new \controllers\Dependentes($app))->get($id);
+// Rota para listar planos por datas
+$app->get('/plano/listar/', function () use ($app) {
+    $controller = new \controllers\Plano($app);
+    $controller->listar();
 });
 
-$app->post('/dependentes/', function() use ($app) {
-    (new \controllers\Dependentes($app))->novo();
+// Rota para buscar um plano por ID
+$app->get('/plano/:id', function ($id) use ($app) {
+    $controller = new \controllers\Plano($app);
+    $controller->get($id);
 });
 
-$app->put('/dependentes/:id', function($id) use ($app) {
-    (new \controllers\Dependentes($app))->editar($id);
+// Rota para criar um novo plano
+$app->post('/plano/', function () use ($app) {
+    $controller = new \controllers\Plano($app);
+    $controller->novo();
 });
 
-$app->delete('/dependentes/:id', function($id) use ($app) {
-    (new \controllers\Dependentes($app))->excluir($id);
+// Rota para editar um plano
+$app->put('/plano/:id', function ($id) use ($app) {
+    $controller = new \controllers\Plano($app);
+    $controller->editar($id);
 });
 
-$app->get('/plano/', function() use ($app) {
-    (new \controllers\Plano($app))->lista();
+// Rota para excluir um plano
+$app->delete('/plano/:id', function ($id) use ($app) {
+    $controller = new \controllers\Plano($app);
+    $controller->excluir($id);
 });
 
-$app->get('/plano/filtro/', function() use ($app) {
-    (new \controllers\Plano($app))->listar();
+// Rota para listar dependentes por CPF do titular
+$app->get('/dependentes/', function () use ($app) {
+    $controller = new \controllers\Dependentes($app);
+    $controller->lista();
 });
 
-$app->get('/plano/:id', function($id) use ($app) {
-    (new \controllers\Plano($app))->get($id);
+// Rota para obter um dependente por ID
+$app->get('/dependentes/:id', function ($id) use ($app) {
+    $controller = new \controllers\Dependentes($app);
+    $controller->get($id);
 });
 
-$app->post('/plano/', function() use ($app) {
-    (new \controllers\Plano($app))->novo();
+// Rota para adicionar um novo dependente
+$app->post('/dependentes/', function () use ($app) {
+    $controller = new \controllers\Dependentes($app);
+    $controller->novo();
 });
 
-$app->put('/plano/:id', function($id) use ($app) {
-    (new \controllers\Plano($app))->editar($id);
+// Rota para editar um dependente
+$app->put('/dependentes/:id', function ($id) use ($app) {
+    $controller = new \controllers\Dependentes($app);
+    $controller->editar($id);
 });
 
-$app->delete('/plano/:id', function($id) use ($app) {
-    (new \controllers\Plano($app))->excluir($id);
+// Rota para excluir um dependente
+$app->delete('/dependentes/:id', function ($id) use ($app) {
+    $controller = new \controllers\Dependentes($app);
+    $controller->excluir($id);
 });
 
-//Rodando aplicação
 $app->run();
