@@ -7,107 +7,250 @@ class Dependentes {
 
     // Construtor para inicializar o PDO e o Slim
     public function __construct($app) {
-        $this->PDO = new \PDO('mysql:host=104.234.173.105;dbname=candelaria', 'root', 'Ncm@647534');
+        $host = $_ENV['CODEEASY_GERENCIADOR_MYSQL_HOST'];
+        $dbname = $_ENV['CODEEASY_GERENCIADOR_MYSQL_DBNAMO'];
+        $user = $_ENV['CODEEASY_GERENCIADOR_MYSQL_USER'];
+        $password = $_ENV['CODEEASY_GERENCIADOR_MYSQL_PASSWORD'];
+             
+        $this->PDO = new \PDO("mysql:host=$host;dbname=$dbname", $user, $password);
         $this->PDO->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
         $this->app = $app;
     }
 
     // Lista registros filtrados pelo cpf_titular
-    public function lista() {
-        $cpf_titular = $this->app->request->get('cpf_titular');
-
-        if (!$cpf_titular) {
-            $this->app->response->setStatus(400);
-            echo json_encode(["error" => "O parâmetro 'cpf_titular' é obrigatório"]);
-            return;
-        }
-
+    public function buscaPorCpf($request, $response) {
         try {
+            // Obtém os dados enviados no corpo da requisição
+            $dados = $request->getParsedBody();
+    
+            // Verifica se o CPF foi enviado
+            if (empty($dados['cpf_titular'])) {
+                $error = ['error' => 'O campo "cpf_titular" é obrigatório'];
+                $response->getBody()->write(json_encode($error)); // Escreve o erro no corpo da resposta
+                return $response->withStatus(400)->withHeader('Content-Type', 'application/json'); // Retorna status 400
+            }
+    
+            $cpf_titular = $dados['cpf_titular'];
+    
+            // Prepara a consulta SQL
             $sth = $this->PDO->prepare("SELECT * FROM dependentes WHERE cpf_titular = :cpf_titular");
-            $sth->bindValue(':cpf_titular', $cpf_titular);
+            $sth->bindValue(':cpf_titular', $cpf_titular, \PDO::PARAM_STR);
             $sth->execute();
+    
+            // Obtém o resultado da consulta
             $result = $sth->fetchAll(\PDO::FETCH_ASSOC);
-
-            $this->respond($result);
+    
+            if ($result) {
+                // Retorna os dados encontrados
+                $response->getBody()->write(json_encode($result)); // Escreve os dados como JSON
+                return $response->withHeader('Content-Type', 'application/json'); // Define o tipo de conteúdo como JSON
+            } else {
+                // Caso não encontre resultados
+                $error = ['error' => 'Nenhum registro encontrado para o CPF fornecido'];
+                $response->getBody()->write(json_encode($error)); // Escreve o erro no corpo da resposta
+                return $response->withStatus(404)->withHeader('Content-Type', 'application/json'); // Retorna status 404
+            }
         } catch (\PDOException $e) {
-            $this->respondError(500, $e->getMessage());
+            // Caso ocorra algum erro de banco de dados
+            $error = ['error' => $e->getMessage()];
+            $response->getBody()->write(json_encode($error)); // Escreve o erro no corpo da resposta
+            return $response->withStatus(500)->withHeader('Content-Type', 'application/json'); // Retorna status 500
         }
     }
+    
 
     // Obtém um registro específico pelo ID
-    public function get($id) {
+    public function getDependentes($request, $response) {
         try {
-            $sth = $this->PDO->prepare("SELECT * FROM dependentes WHERE id = :id");
-            $sth->bindValue(':id', $id, \PDO::PARAM_INT);
+            // Obtém os dados enviados no corpo da requisição
+            $dados = $request->getParsedBody();
+    
+            // Verifica se o CPF foi enviado
+            if (empty($dados['cpf'])) {
+                $error = ['error' => 'O campo "cpf" é obrigatório'];
+                $response->getBody()->write(json_encode($error)); // Escreve o erro no corpo da resposta
+                return $response->withStatus(400)->withHeader('Content-Type', 'application/json'); // Retorna status 400
+            }
+    
+            $cpf = $dados['cpf'];
+    
+            // Prepara a consulta SQL
+            $sth = $this->PDO->prepare("SELECT * FROM dependentes WHERE cpf = :cpf");
+            $sth->bindValue(':cpf', $cpf, \PDO::PARAM_STR);
             $sth->execute();
-            $result = $sth->fetch(\PDO::FETCH_ASSOC);
-
+    
+            // Obtém os resultados
+            $result = $sth->fetchAll(\PDO::FETCH_ASSOC);
+    
             if ($result) {
-                $this->respond($result);
+                // Retorna os dados encontrados
+                $response->getBody()->write(json_encode($result)); // Escreve os dados no corpo da resposta
+                return $response->withHeader('Content-Type', 'application/json'); // Define o tipo de conteúdo como JSON
             } else {
-                $this->respondError(404, "Registro não encontrado");
+                // Caso não encontre resultados
+                $error = ['error' => 'Nenhum registro encontrado para o CPF fornecido'];
+                $response->getBody()->write(json_encode($error)); // Escreve o erro no corpo da resposta
+                return $response->withStatus(404)->withHeader('Content-Type', 'application/json'); // Retorna status 404
             }
         } catch (\PDOException $e) {
-            $this->respondError(500, $e->getMessage());
+            // Caso ocorra algum erro de banco de dados
+            $error = ['error' => $e->getMessage()];
+            $response->getBody()->write(json_encode($error)); // Escreve o erro no corpo da resposta
+            return $response->withStatus(500)->withHeader('Content-Type', 'application/json'); // Retorna status 500
         }
     }
+    
 
     // Adiciona um novo registro
-    public function novo() {
-        $dados = json_decode($this->app->request->getBody(), true);
-        $dados = (sizeof($dados) == 0) ? $_POST : $dados;
-        $keys = array_keys($dados);
-
+    public function novo($request, $response) {
         try {
-            $sth = $this->PDO->prepare("INSERT INTO dependentes (" . implode(',', $keys) . ") VALUES (:" . implode(",:", $keys) . ")");
+            // Obtém os dados enviados no corpo da requisição
+            $dados = $request->getParsedBody();
+    
+            // Verifica se os dados foram enviados corretamente
+            if (empty($dados) || !is_array($dados)) {
+                $error = ['error' => 'Os dados enviados são inválidos ou estão ausentes'];
+                $response->getBody()->write(json_encode($error)); // Escreve o erro no corpo da resposta
+                return $response->withStatus(400)->withHeader('Content-Type', 'application/json'); // Retorna status 400
+            }
+    
+            // Monta os campos e valores para a query
+            $keys = array_keys($dados);
+            $placeholders = array_map(function($key) { return ':' . $key; }, $keys);
+            $query = "INSERT INTO dependentes (" . implode(',', $keys) . ") VALUES (" . implode(',', $placeholders) . ")";
+    
+            // Prepara a consulta SQL
+            $sth = $this->PDO->prepare($query);
+    
+            // Faz o binding dos valores
             foreach ($dados as $key => $value) {
                 $sth->bindValue(':' . $key, $value);
             }
+    
+            // Executa a query
             $sth->execute();
-
-            $this->respond(["id" => $this->PDO->lastInsertId()]);
+    
+            // Retorna o ID do novo registro inserido
+            $responseData = ['id' => $this->PDO->lastInsertId()];
+            $response->getBody()->write(json_encode($responseData)); // Escreve os dados no corpo da resposta
+            return $response->withHeader('Content-Type', 'application/json'); // Define o tipo de conteúdo como JSON
         } catch (\PDOException $e) {
-            $this->respondError(500, $e->getMessage());
+            // Caso ocorra algum erro, retorna o erro com código 500
+            $error = ['error' => $e->getMessage()];
+            $response->getBody()->write(json_encode($error)); // Escreve o erro no corpo da resposta
+            return $response->withStatus(500)->withHeader('Content-Type', 'application/json'); // Retorna status 500
         }
     }
+    
 
     // Atualiza um registro específico
-    public function editar($id) {
-        $dados = json_decode($this->app->request->getBody(), true);
-        $dados = (sizeof($dados) == 0) ? $_POST : $dados;
-        $sets = [];
-
-        foreach ($dados as $key => $value) {
-            $sets[] = $key . " = :" . $key;
-        }
-
+    public function alterar($request, $response) {
         try {
-            $sth = $this->PDO->prepare("UPDATE dependentes SET " . implode(',', $sets) . " WHERE id = :id");
-            $sth->bindValue(':id', $id, \PDO::PARAM_INT);
+            // Obtém os dados enviados no corpo da requisição
+            $dados = $request->getParsedBody();
+    
+            // Verifica se o CPF foi enviado
+            if (empty($dados['cpf'])) {
+                $error = ['error' => 'O campo "cpf" é obrigatório para a atualização'];
+                $response->getBody()->write(json_encode($error)); // Escreve o erro no corpo da resposta
+                return $response->withStatus(400)->withHeader('Content-Type', 'application/json'); // Retorna status 400
+            }
+    
+            $cpf = $dados['cpf']; // Armazena o CPF para o filtro
+            unset($dados['cpf']); // Remove o CPF dos dados a serem atualizados
+    
+            // Verifica se há outros campos para atualização
+            if (empty($dados)) {
+                $error = ['error' => 'Nenhum campo fornecido para atualização'];
+                $response->getBody()->write(json_encode($error)); // Escreve o erro no corpo da resposta
+                return $response->withStatus(400)->withHeader('Content-Type', 'application/json'); // Retorna status 400
+            }
+    
+            // Monta a query de atualização dinamicamente
+            $fields = array_map(function($key) {
+                return "$key = :$key";
+            }, array_keys($dados));
+            $query = "UPDATE dependentes SET " . implode(', ', $fields) . " WHERE cpf = :cpf";
+    
+            // Prepara a consulta SQL
+            $sth = $this->PDO->prepare($query);
+    
+            // Faz o binding dos valores
             foreach ($dados as $key => $value) {
                 $sth->bindValue(':' . $key, $value);
             }
-
-            $status = $sth->execute();
-            $this->respond(["status" => $status]);
+            $sth->bindValue(':cpf', $cpf); // Faz o binding do CPF
+    
+            // Executa a query
+            $sth->execute();
+    
+            // Verifica se a atualização foi realizada
+            if ($sth->rowCount() > 0) {
+                $responseData = ['message' => 'Registro atualizado com sucesso'];
+                $response->getBody()->write(json_encode($responseData)); // Escreve os dados no corpo da resposta
+                return $response->withHeader('Content-Type', 'application/json'); // Define o tipo de conteúdo como JSON
+            } else {
+                $error = ['error' => 'Nenhum registro foi encontrado com o CPF fornecido'];
+                $response->getBody()->write(json_encode($error)); // Escreve o erro no corpo da resposta
+                return $response->withStatus(404)->withHeader('Content-Type', 'application/json'); // Retorna status 404
+            }
         } catch (\PDOException $e) {
-            $this->respondError(500, $e->getMessage());
+            // Caso ocorra algum erro, retorna o erro com código 500
+            $error = ['error' => $e->getMessage()];
+            $response->getBody()->write(json_encode($error)); // Escreve o erro no corpo da resposta
+            return $response->withStatus(500)->withHeader('Content-Type', 'application/json'); // Retorna status 500
         }
     }
+    
 
     // Remove um registro específico
-    public function excluir($id) {
+    public function excluir($request, $response, $args) {
+        // Pega os dados enviados no corpo da requisição (JSON)
+        $dados = $request->getParsedBody();
+    
+        // Verifica se o campo 'cpf' está presente
+        if (empty($dados['cpf'])) {
+            $error = ['error' => 'Campo "cpf" é obrigatório'];
+            $response->getBody()->write(json_encode($error)); // Escreve o erro no corpo da resposta
+            return $response->withStatus(400)->withHeader('Content-Type', 'application/json'); // Retorna o status 400
+        }
+    
+        // Verifica se o registro com o 'cpf' fornecido existe
+        $query = "SELECT * FROM dependentes WHERE cpf = :cpf";
+        $sth = $this->PDO->prepare($query);
+        $sth->bindValue(':cpf', $dados['cpf']);
+        $sth->execute();
+    
+        // Se o registro não for encontrado
+        if ($sth->rowCount() == 0) {
+            $error = ['error' => 'Registro não encontrado'];
+            $response->getBody()->write(json_encode($error)); // Escreve o erro no corpo da resposta
+            return $response->withStatus(404)->withHeader('Content-Type', 'application/json'); // Retorna o status 404
+        }
+    
         try {
-            $sth = $this->PDO->prepare("DELETE FROM dependentes WHERE id = :id");
-            $sth->bindValue(':id', $id, \PDO::PARAM_INT);
-            $status = $sth->execute();
-
-            $this->respond(["status" => $status]);
+            // Prepara a query de exclusão
+            $query = "DELETE FROM dependentes WHERE cpf = :cpf";
+            $sth = $this->PDO->prepare($query);
+            $sth->bindValue(':cpf', $dados['cpf']);
+    
+            // Executa a query de exclusão
+            $sth->execute();
+    
+            // Responde com o status 200 (OK) e uma mensagem de sucesso
+            $responseData = ["message" => "Registro excluído com sucesso"];
+            $response->getBody()->write(json_encode($responseData)); // Escreve a mensagem no corpo da resposta
+            return $response->withHeader('Content-Type', 'application/json'); // Define o tipo de conteúdo como JSON
+    
         } catch (\PDOException $e) {
-            $this->respondError(500, $e->getMessage());
+            // Caso ocorra algum erro, retorna o erro com código 500
+            $error = ["error" => $e->getMessage()];
+            $response->getBody()->write(json_encode($error)); // Escreve o erro no corpo da resposta
+            return $response->withStatus(500)->withHeader('Content-Type', 'application/json'); // Retorna o status 500
         }
     }
-
+    
+    
     // Responde com JSON
     private function respond($data) {
         header('Content-Type: application/json');
